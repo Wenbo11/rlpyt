@@ -116,6 +116,12 @@ class GymSpaceWrapper:
     def n(self):
         return self.space.n
 
+    def seed(self, seed=None):
+        if type(self.space) is Composite:
+            return [space.seed(seed=seed) for space in self.space.spaces]
+        else:
+            return self.space.seed(seed=seed)
+
 
 def dict_to_nt(value, name, schemas):
     if isinstance(value, dict):

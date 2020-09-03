@@ -61,6 +61,7 @@ class R2D1(DQN):
             input_priorities=True,
             input_priority_shift=None,
             value_scale_eps=1e-3,  # 1e-3 (Steven).
+            ReplayBufferCls=None,  # leave None to select by above options
             updates_per_sync=1,  # For async mode only.
             ):
         """Saves input arguments.
@@ -118,6 +119,11 @@ class R2D1(DQN):
         else:
             ReplayCls = (AsyncUniformSequenceReplayFrameBuffer if async_
                 else UniformSequenceReplayFrameBuffer)
+        if self.ReplayBufferCls is not None:
+            ReplayCls = self.ReplayBufferCls
+            logger.log(f"WARNING: ignoring internal selection logic and using"
+                f" input replay buffer class: {ReplayCls} -- compatibility not"
+                " guaranteed.")
         self.replay_buffer = ReplayCls(**replay_kwargs)
         return self.replay_buffer
 
@@ -152,7 +158,7 @@ class R2D1(DQN):
             if self.prioritized_replay:
                 self.replay_buffer.update_batch_priorities(priorities)
             opt_info.loss.append(loss.item())
-            opt_info.gradNorm.append(grad_norm)
+            opt_info.gradNorm.append(torch.tensor(grad_norm).item())  # backwards compatible
             opt_info.tdAbsErr.extend(td_abs_errors[::8].numpy())
             opt_info.priority.extend(priorities)
             self.update_counter += 1

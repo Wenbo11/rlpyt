@@ -45,6 +45,7 @@ class DDPG(RlAlgorithm):
             n_step_return=1,
             updates_per_sync=1,  # For async mode only.
             bootstrap_timelimit=True,
+            ReplayBufferCls=None,
             ):
         """Saves input arguments."""
         if optim_kwargs is None:
@@ -120,6 +121,11 @@ class DDPG(RlAlgorithm):
             ReplayCls = AsyncUniformReplayBuffer if async_ else UniformReplayBuffer
         else:
             ReplayCls = AsyncTlUniformReplayBuffer if async_ else TlUniformReplayBuffer
+        if self.ReplayBufferCls is not None:
+            ReplayCls = self.ReplayBufferCls
+            logger.log(f"WARNING: ignoring internal selection logic and using"
+                f" input replay buffer class: {ReplayCls} -- compatibility not"
+                " guaranteed.")
         self.replay_buffer = ReplayCls(**replay_kwargs)
 
     def optimize_agent(self, itr, samples=None, sampler_itr=None):
@@ -153,7 +159,7 @@ class DDPG(RlAlgorithm):
                 self.agent.q_parameters(), self.clip_grad_norm)
             self.q_optimizer.step()
             opt_info.qLoss.append(q_loss.item())
-            opt_info.qGradNorm.append(q_grad_norm)
+            opt_info.qGradNorm.append(torch.tensor(q_grad_norm).item())  # backwards compatible
             self.update_counter += 1
             if self.update_counter % self.policy_update_interval == 0:
                 self.mu_optimizer.zero_grad()
@@ -163,7 +169,7 @@ class DDPG(RlAlgorithm):
                     self.agent.mu_parameters(), self.clip_grad_norm)
                 self.mu_optimizer.step()
                 opt_info.muLoss.append(mu_loss.item())
-                opt_info.muGradNorm.append(mu_grad_norm)
+                opt_info.muGradNorm.append(torch.tensor(mu_grad_norm).item())  # backwards compatible
             if self.update_counter % self.target_update_interval == 0:
                 self.agent.update_target(self.target_update_tau)
         return opt_info

@@ -210,7 +210,8 @@ def log(s, with_prefix=True, with_timestamp=True, color=None):
 
 def record_tabular(key, val, *args, **kwargs):
     # if not _disabled and not _tabular_disabled:
-    _tabular.append((_tabular_prefix_str + str(key), str(val)))
+    key = _tabular_prefix_str + str(key)
+    _tabular.append((key, str(val)))
     if _tf_summary_writer is not None:
         _tf_summary_writer.add_scalar(key, val, _iteration)
 
@@ -340,6 +341,11 @@ def save_itr_params(itr, params):
                 file_name = osp.join(get_snapshot_dir(), 'itr_%d.pkl' % itr)
             else:
                 return
+        elif _snapshot_mode == "last+gap":
+            if itr == 0 or (itr + 1) % _snapshot_gap == 0:
+                file_name = osp.join(get_snapshot_dir(), 'itr_%d.pkl' % itr)
+                torch.save(params, file_name)
+            file_name = osp.join(get_snapshot_dir(), 'params.pkl')
         elif _snapshot_mode == 'none':
             return
         else:
@@ -443,15 +449,15 @@ def log_variant(log_file, variant_data):
         json.dump(variant_json, f, indent=2, sort_keys=True, cls=MyEncoder)
 
 
-def record_tabular_misc_stat(key, values, placement='back', group_slash=False):
+def record_tabular_misc_stat(key, values, placement='back'):
     if placement == 'front':
         prefix = ""
         suffix = key
     else:
         prefix = key
         suffix = ""
-        if group_slash:
-            prefix += "/"
+        if _tf_summary_writer is not None:
+            prefix += "/"  # Group stats together in Tensorboard.
     if len(values) > 0:
         record_tabular(prefix + "Average" + suffix, np.average(values))
         record_tabular(prefix + "Std" + suffix, np.std(values))
